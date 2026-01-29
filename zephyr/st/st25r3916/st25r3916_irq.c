@@ -40,7 +40,11 @@ typedef struct
 {
     void      (*prevCallback)(void); /*!< call back function for ST25R3916 interrupt          */
     void      (*callback)(void);     /*!< call back function for ST25R3916 interrupt          */
+#if CONFIG_EVENTS
+    struct k_event status;
+#else
     uint32_t  status;                /*!< latest interrupt status                             */
+#endif
     uint32_t  mask;                  /*!< Interrupt mask. Negative mask = ST25R3916 mask regs */
 } st25r3916Interrupt;
 
@@ -75,7 +79,12 @@ void st25r3916InitInterrupts( void )
     
     st25r3916interrupt.callback     = NULL;
     st25r3916interrupt.prevCallback = NULL;
+#if CONFIG_EVENTS
+    k_event_init(&st25r3916interrupt.status);
+    k_event_set(&st25r3916interrupt.status, ST25R3916_IRQ_MASK_NONE);
+#else
     st25r3916interrupt.status       = ST25R3916_IRQ_MASK_NONE;
+#endif
     st25r3916interrupt.mask         = ST25R3916_IRQ_MASK_NONE;
 }
 
@@ -96,6 +105,12 @@ void st25r3916Isr( void )
 /*******************************************************************************/
 void st25r3916CheckForReceivedInterrupts( void )
 {
+
+#if CONFIG_THREAD_NAME
+  printk("check for recv IQR - current thread: %s\n", k_thread_name_get(k_current_get()));
+#endif
+
+
     uint8_t  iregs[ST25R3916_INT_REGS_LEN];
     uint32_t irqStatus;
     
@@ -117,11 +132,19 @@ void st25r3916CheckForReceivedInterrupts( void )
    
    /* Forward all interrupts, even masked ones to application */
    platformProtectST25RIrqStatus();
+#if CONFIG_EVENTS
+   k_event_post(&st25r3916interrupt.status, irqStatus);
+#else
    st25r3916interrupt.status |= irqStatus;
+#endif
    platformUnprotectST25RIrqStatus();
    
    /* Send an IRQ event to LED handling */
+#if CONFIG_EVENTS
+   st25r3916ledEvtIrq( k_event_wait(&st25r3916interrupt.status, 0xFFFFFFFFu, false, K_NO_WAIT) );
+#else
    st25r3916ledEvtIrq( st25r3916interrupt.status );
+#endif
 }
 
 
@@ -160,6 +183,10 @@ uint32_t st25r3916WaitForInterruptsTimed( uint32_t mask, uint16_t tmo )
     tmrDelay = platformTimerCreate( tmo );
     
     /* Run until specific interrupt has happen or the timer has expired */
+#if CONFIG_EVENTS
+    status = k_event_wait(&st25r3916interrupt.status, mask, true, K_MSEC(tmrDelay));
+    // status = status & mask; // Above versus wait on all and check
+#else
     do 
     {
         status = (st25r3916interrupt.status & mask);
@@ -172,6 +199,8 @@ uint32_t st25r3916WaitForInterruptsTimed( uint32_t mask, uint16_t tmo )
     platformProtectST25RIrqStatus();
     st25r3916interrupt.status &= ~status;
     platformUnprotectST25RIrqStatus();
+
+#endif
     
     return status;
 }
@@ -182,6 +211,9 @@ uint32_t st25r3916GetInterrupt( uint32_t mask )
 {
     uint32_t irqs;
 
+#if CONFIG_EVENTS
+    irqs = k_event_wait(&st25r3916interrupt.status, mask, true, K_NO_WAIT);
+#else
     irqs = (st25r3916interrupt.status & mask);
     if(irqs != ST25R3916_IRQ_MASK_NONE)
     {
@@ -189,6 +221,7 @@ uint32_t st25r3916GetInterrupt( uint32_t mask )
         st25r3916interrupt.status &= ~irqs;
         platformUnprotectST25RIrqStatus();
     }
+#endif
 
     return irqs;
 }
@@ -223,7 +256,11 @@ void st25r3916ClearInterrupts( void )
     st25r3916ReadMultipleRegisters(ST25R3916_REG_IRQ_MAIN, iregs, ST25R3916_INT_REGS_LEN);
 
     platformProtectST25RIrqStatus();
+#if CONFIG_EVENTS
+    k_event_set(&st25r3916interrupt.status, ST25R3916_IRQ_MASK_NONE);
+#else
     st25r3916interrupt.status = ST25R3916_IRQ_MASK_NONE;
+#endif
     platformUnprotectST25RIrqStatus();
     return;
 }
