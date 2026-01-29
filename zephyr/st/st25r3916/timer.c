@@ -49,6 +49,9 @@ static uint32_t timerStopwatchTick;
 /*******************************************************************************/
 uint32_t timerCalculateTimer( uint16_t time )
 {
+  #if CONFIG_THREAD_NAME && 0
+  printk("calc timer - current thread: %s\n", k_thread_name_get(k_current_get()));
+#endif
   return (platformGetSysTick() + time);
 }
 
@@ -66,6 +69,9 @@ bool timerIsExpired( uint32_t timer )
    *    Signaling not expired: acceptable!
    * 2) Time roll-over case will be handled correctly: super!
    */
+#if CONFIG_THREAD_NAME  && 0
+  printk("timer expired - current thread: %s - %d (%d)\n", k_thread_name_get(k_current_get()), timer, sDiff);
+#endif
   
   /* Check if the given timer has expired already */
   if( sDiff < 0 )
@@ -81,6 +87,10 @@ bool timerIsExpired( uint32_t timer )
 void timerDelay( uint16_t tOut )
 {
   uint32_t t;
+
+#if CONFIG_THREAD_NAME && 0
+  printk("timer delay - current thread: %s - %d\n", k_thread_name_get(k_current_get()), tOut);
+#endif
   
   /* Calculate the timer and wait blocking until is running */
   t = timerCalculateTimer( tOut );

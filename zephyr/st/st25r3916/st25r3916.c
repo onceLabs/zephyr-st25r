@@ -70,6 +70,11 @@
 ******************************************************************************
 */
 
+#if CONFIG_LOG
+  #include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(st25r3916c, LOG_LEVEL_INF);
+#endif
+
 /*
 ******************************************************************************
 * LOCAL VARIABLES
@@ -654,6 +659,8 @@ bool st25r3916CheckChipID( uint8_t *rev )
     
     ID = 0;
     st25r3916ReadRegister( ST25R3916_REG_IC_IDENTITY, &ID );
+
+    platformLog("ST25R3916 Chip ID: 0x%02X\r\n", ID);
     
     /* Check if IC Identity Register contains ST25R3916's IC type code */
 #if defined(ST25R3916)
