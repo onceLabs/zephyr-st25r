@@ -70,6 +70,7 @@ void st25r3916ledInit( void )
 /*******************************************************************************/
 void st25r3916ledEvtIrq( uint32_t irqs )
 {
+    printk("ST25R3916 IRQ Event: 0x%08X\n", irqs);
     if( (irqs & (ST25R3916_IRQ_MASK_TXE | ST25R3916_IRQ_MASK_CAT) ) != 0U )
     {
         st25r3916ledFieldOn();

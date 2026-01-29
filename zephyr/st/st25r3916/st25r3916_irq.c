@@ -106,7 +106,7 @@ void st25r3916Isr( void )
 void st25r3916CheckForReceivedInterrupts( void )
 {
 
-#if CONFIG_THREAD_NAME
+#if CONFIG_THREAD_NAME && 0
   printk("check for recv IQR - current thread: %s\n", k_thread_name_get(k_current_get()));
 #endif
 
@@ -133,7 +133,8 @@ void st25r3916CheckForReceivedInterrupts( void )
    /* Forward all interrupts, even masked ones to application */
    platformProtectST25RIrqStatus();
 #if CONFIG_EVENTS
-   k_event_post(&st25r3916interrupt.status, irqStatus);
+   k_event_clear(&st25r3916interrupt.status, 0xFFFFFFFFu);
+   k_event_set(&st25r3916interrupt.status, irqStatus);
 #else
    st25r3916interrupt.status |= irqStatus;
 #endif
@@ -180,13 +181,14 @@ uint32_t st25r3916WaitForInterruptsTimed( uint32_t mask, uint16_t tmo )
     uint32_t tmrDelay;
     uint32_t status;
     
-    tmrDelay = platformTimerCreate( tmo );
-    
     /* Run until specific interrupt has happen or the timer has expired */
 #if CONFIG_EVENTS
-    status = k_event_wait(&st25r3916interrupt.status, mask, true, K_MSEC(tmrDelay));
+    status = k_event_wait(&st25r3916interrupt.status, mask, true, K_MSEC(tmo));
     // status = status & mask; // Above versus wait on all and check
 #else
+
+    tmrDelay = platformTimerCreate( tmo );
+
     do 
     {
         status = (st25r3916interrupt.status & mask);
